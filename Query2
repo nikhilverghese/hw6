@@ -1,0 +1,36 @@
+import { MongoClient } from "mongodb";
+import { createClient } from "redis";
+
+const agg = [
+  {
+    '$project': {
+      'favorite_count': '$favorite_count'
+    }
+  }
+];
+
+async function main() {
+  const client = await MongoClient.connect("mongodb://localhost:27017/");
+  const coll = client.db("ieeevisTweets").collection("tweet");
+
+  const redisClient = createClient();
+  redisClient.on("error", (err) => console.log("Redis Client Error", err));
+
+  await redisClient.connect();
+
+  let favoritesSum = 0;
+
+  const cursor = coll.aggregate(agg);
+  const cursorVal = await cursor.toArray();
+  for (let i = 0; i < cursorVal.length; i++) {
+    favoritesSum += cursorVal[i].favorite_count;
+  }
+
+  await redisClient.set("favoritesSum", favoritesSum);
+  console.log(`The sum of favorite counts is ${favoritesSum}`);
+
+  await client.close();
+  await redisClient.disconnect();
+}
+
+main().catch(console.error);

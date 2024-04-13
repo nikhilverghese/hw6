@@ -1,0 +1,23 @@
+import { MongoClient } from "mongodb";
+import { createClient } from "redis";
+
+const client = await MongoClient.connect("mongodb://localhost:27017/");
+const coll = client.db("ieeevisTweets").collection("tweet");
+
+const redisClient = createClient();
+redisClient.on("error", (err) => console.log("Redis Client Error", err));
+await redisClient.connect();
+
+let tweetCount = await redisClient.set("tweetCount", 0);
+
+const cursor = coll.find({});
+const totalTweets = await coll.countDocuments({});
+for (let i = 0; i < totalTweets; i++) {
+    await redisClient.incr("tweetCount");
+}
+
+tweetCount = await redisClient.get("tweetCount");
+console.log(`There were ${tweetCount} tweets`);
+
+await client.close();
+await redisClient.disconnect();
